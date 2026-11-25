@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NASCAR Loop Academy - Belajar Konsep Looping</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 0.75rem;
+        }
+        /* Animasi highlight baris kode aktif */
+        .code-line {
+            transition: all 0.25s ease;
+            border-left: 3px solid transparent;
+        }
+        .code-line.active {
+            background-color: rgba(59, 130, 246, 0.25);
+            border-left-color: #38bdf8;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .code-line.active-true {
+            background-color: rgba(34, 197, 94, 0.25);
+            border-left-color: #4ade80;
+        }
+        .code-line.active-false {
+            background-color: rgba(239, 68, 68, 0.25);
+            border-left-color: #f87171;
+        }
+        /* Custom scrollbar untuk panel kode */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        /* Efek tombol sentuh */
+        .control-btn:active, .control-btn.pressed {
+            transform: scale(0.94);
+            background-color: #2563eb;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header / Navbar -->
+    <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-3 sticky top-0 z-30 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-500 text-slate-950 p-2 rounded-xl font-extrabold text-lg shadow-lg shadow-amber-500/20 flex items-center justify-center">
+                    🏁
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-white">
+                        NASCAR <span class="text-sky-400">Loop</span> Academy
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Media Pembelajaran Interaktif Konsep Perulangan (For & While)</p>
+                </div>
+            </div>
+
+            <!-- HUD Status Iterasi Cepat -->
+            <div class="flex items-center gap-2 sm:gap-4">
+                <div class="bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                    <span class="text-xs text-slate-400 font-semibold">Iterasi Lap:</span>
+                    <span id="hud-lap" class="code-font font-bold text-amber-400 text-sm sm:text-base">0 / 3</span>
+                </div>
+                <div id="hud-condition-badge" class="bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                    <span class="text-xs text-slate-400 font-semibold hidden md:inline">Kondisi:</span>
+                    <span id="hud-condition" class="code-font font-bold text-sky-400 text-xs sm:text-sm">SIAP</span>
+                </div>
+                <button onclick="openSetupModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+                    <span>⚙️</span> <span class="hidden sm:inline">Atur Loop</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        
+        <!-- Kolom Kiri: Area Sirkuit Balap & Kontrol (7 Kolom di Desktop) -->
+        <div class="lg:col-span-7 flex flex-col gap-3">
+            <!-- Container Canvas Sirkuit -->
+            <div class="relative bg-slate-900 border-2 border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex-1 min-h-[340px] sm:min-h-[430px]" id="canvas-container">
+                <canvas id="raceCanvas"></canvas>
+
+                <!-- Overlay Banner Penjelasan Real-Time di Atas Canvas -->
+                <div class="absolute top-3 left-3 right-3 pointer-events-none flex justify-between items-start gap-2">
+                    <div id="live-narration" class="bg-slate-950/85 backdrop-blur-md border border-slate-700/80 text-slate-100 px-3.5 py-2 rounded-xl text-xs sm:text-sm shadow-lg max-w-md transition-all">
+                        <span class="text-amber-400 font-bold">💡 Info:</span> Atur jumlah lap lalu tekan <b>Mulai Balapan</b>!
+                    </div>
+
+                    <!-- Indikator Mode Gas -->
+                    <div class="pointer-events-auto">
+                        <button id="toggle-auto-gas" onclick="toggleAutoGas()" class="bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-lg border border-emerald-400/30 transition flex items-center gap-1.5">
+                            <span id="auto-gas-icon">🟢</span>
+                            <span id="auto-gas-text">Gas Otomatis: ON</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panduan Singkat Kontrol di Pojok Bawah Canvas -->
+                <div class="absolute bottom-3 left-3 pointer-events-none hidden sm:flex items-center gap-2 bg-slate-950/75 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-300">
+                    <span>🎮 Kontrol:</span>
+                    <kbd class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-600 text-slate-200">◀</kbd>
+                    <kbd class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-600 text-slate-200">▶</kbd>
+                    <span>Belok Halus</span>
+                    <span class="text-slate-600">|</span>
+                    <kbd class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-600 text-slate-200">▲</kbd>
+                    <span>Gas Manual</span>
+                </div>
+            </div>
+
+            <!-- Panel Kontrol Sentuh & Aksi (Ramah Layar Sentuh / Tablet / HP) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+                <!-- Tombol Aksi Utama -->
+                <div class="flex items-center gap-2">
+                    <button id="btn-start-pause" onclick="toggleRaceState()" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold px-4 py-2.5 rounded-xl text-sm shadow-lg shadow-sky-500/20 transition flex items-center gap-2">
+                        <span id="btn-start-icon">▶️</span>
+                        <span id="btn-start-text">Mulai Balapan</span>
+                    </button>
+                    <button onclick="resetRace()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3.5 py-2.5 rounded-xl text-sm border border-slate-700 transition">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <!-- Tombol Setir & Gas Layar Sentuh -->
+                <div class="flex items-center gap-2 ml-auto">
+                    <button id="touch-left" class="control-btn select-none bg-slate-800 hover:bg-slate-700 active:bg-sky-600 text-white font-bold px-5 py-3 rounded-xl border border-slate-600 shadow text-sm flex items-center gap-1">
+                        ◀ Belok Kiri
+                    </button>
+                    <button id="touch-right" class="control-btn select-none bg-slate-800 hover:bg-slate-700 active:bg-sky-600 text-white font-bold px-5 py-3 rounded-xl border border-slate-600 shadow text-sm flex items-center gap-1">
+                        Belok Kanan ▶
+                    </button>
+                    <button id="touch-gas" class="control-btn select-none bg-amber-600 hover:bg-amber-500 active:bg-amber-400 text-slate-950 font-extrabold px-4 py-3 rounded-xl border border-amber-400/50 shadow text-sm hidden">
+                        ▲ Gas
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Live Code Visualizer & Variabel Memory (5 Kolom di Desktop) -->
+        <div class="lg:col-span-5 flex flex-col gap-3">
+            <!-- Panel Live Code Visualizer -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex-1 flex flex-col">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <h2 class="text-sm font-bold text-slate-200 ml-1">Live Code Visualizer</h2>
+                    </div>
+                    <span id="badge-loop-type" class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                        FOR LOOP
+                    </span>
+                </div>
+
+                <!-- Blok Kode Program -->
+                <div id="code-display" class="code-font text-xs sm:text-sm bg-slate-950 rounded-xl p-3.5 border border-slate-800/90 space-y-1.5 overflow-x-auto leading-relaxed">
+                    <!-- Diisi secara dinamis oleh JavaScript sesuai tipe loop -->
+                </div>
+
+                <!-- Monitor Variabel & Evaluasi Kondisi (Memory Inspector) -->
+                <div class="mt-4 bg-slate-950/70 border border-slate-800 rounded-xl p-3.5">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1.5">
+                        <span>🧠</span> Monitor Variabel & Logika
+                    </h3>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-slate-900 border border-slate-800 p-2 rounded-lg">
+                            <div class="text-[11px] text-slate-400">Variabel <code>lap</code></div>
+                            <div id="mem-lap" class="code-font text-lg font-extrabold text-amber-400 mt-0.5">0</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 p-2 rounded-lg">
+                            <div class="text-[11px] text-slate-400"><code>targetLap</code></div>
+                            <div id="mem-target" class="code-font text-lg font-extrabold text-sky-400 mt-0.5">3</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 p-2 rounded-lg">
+                            <div class="text-[11px] text-slate-400">Hasil Kondisi</div>
+                            <div id="mem-eval" class="code-font text-sm font-extrabold text-slate-300 mt-1.5">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Log Riwayat Iterasi -->
+                <div class="mt-3 flex-1 flex flex-col min-h-[110px]">
+                    <div class="text-xs font-bold text-slate-400 mb-1.5 flex justify-between items-center">
+                        <span>📜 Log Eksekusi Perulangan:</span>
+                        <span class="text-[11px] text-slate-500">Otomatis tercatat tiap lap</span>
+                    </div>
+                    <div id="iteration-log" class="code-font text-xs bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex-1 overflow-y-auto max-h-[140px] space-y-1 text-slate-300">
+                        <div class="text-slate-500 italic">// Menunggu balapan dimulai...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL 1: Pengaturan Parameter Loop (Muncul di Awal & Saat Klik Atur Loop) -->
+    <div id="setup-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">🏎️</span>
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-extrabold text-white">Atur Parameter Looping</h2>
+                        <p class="text-xs text-slate-400">Rancang perulangan untuk menentukan jumlah putaran mobil NASCAR</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pilihan Jenis Loop -->
+            <div class="mb-4">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">1. Pilih Struktur Perulangan:</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button" id="opt-for" onclick="selectLoopType('for')" class="p-3 rounded-xl border-2 border-sky-500 bg-sky-500/15 text-left transition">
+                        <div class="font-bold text-sm text-white flex items-center justify-between">
+                            <span>FOR Loop</span>
+                            <span class="text-sky-400 text-xs">Terhitung</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 mt-1">Cocok jika jumlah lap sudah diketahui pasti dari awal.</p>
+                    </button>
+                    <button type="button" id="opt-while" onclick="selectLoopType('while')" class="p-3 rounded-xl border-2 border-slate-700 bg-slate-800/60 text-left transition hover:border-slate-500">
+                        <div class="font-bold text-sm text-white flex items-center justify-between">
+                            <span>WHILE Loop</span>
+                            <span class="text-amber-400 text-xs">Kondisional</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 mt-1">Terus berputar selama kondisi bernilai TRUE.</p>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pilihan Jumlah Target Lap -->
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-400">2. Tentukan Target Jumlah Lap:</label>
+                    <span id="setup-lap-display" class="code-font font-extrabold text-amber-400 text-base bg-slate-800 px-3 py-0.5 rounded-lg border border-slate-700">3 Lap</span>
+                </div>
+                <input type="range" id="input-target-lap" min="1" max="5" value="3" oninput="updateSetupPreview()" class="w-full accent-sky-500 cursor-pointer h-2 bg-slate-700 rounded-lg">
+                <div class="flex justify-between text-[11px] text-slate-400 mt-1 px-1">
+                    <span>1 Lap</span>
+                    <span>2 Lap</span>
+                    <span>3 Lap</span>
+                    <span>4 Lap</span>
+                    <span>5 Lap</span>
+                </div>
+            </div>
+
+            <!-- Pratinjau Kode yang Akan Dijalankan -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">3. Pratinjau Kode Program:</label>
+                <pre id="setup-code-preview" class="code-font text-xs bg-slate-950 border border-slate-800 p-3 rounded-xl text-emerald-400 overflow-x-auto leading-relaxed"></pre>
+            </div>
+
+            <!-- Fitur Bantuan Mengemudi (Agar Fokus ke Logika Loop) -->
+            <div class="mb-5 bg-slate-800/60 border border-slate-700/80 p-3 rounded-xl flex items-center justify-between gap-3">
+                <div>
+                    <div class="text-xs font-bold text-white">Bantuan Setir Pintar (Lintasan Oval)</div>
+                    <div class="text-[11px] text-slate-400">Membantu menjaga mobil tetap stabil di tikungan lebar</div>
+                </div>
+                <input type="checkbox" id="input-assist" checked class="w-5 h-5 accent-sky-500 rounded cursor-pointer">
+            </div>
+
+            <button onclick="applySetupAndClose()" class="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-extrabold py-3 rounded-xl shadow-lg shadow-sky-500/25 transition text-sm">
+                🚀 Terapkan Kode & Masuk Sirkuit
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Ringkasan Pembelajaran Setelah Loop Selesai (Break / Finish) -->
+    <div id="finish-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-center">
+            <div class="w-16 h-16 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3">
+                🏆
+            </div>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-white">Loop Selesai (FINISH)!</h2>
+            <p class="text-xs sm:text-sm text-slate-300 mt-1">Mobil berhenti tepat setelah kondisi perulangan bernilai <span class="code-font font-bold text-rose-400">FALSE</span>.</p>
+
+            <!-- Ringkasan Konsep -->
+            <div id="finish-summary-box" class="mt-4 bg-slate-950 border border-slate-800 rounded-xl p-4 text-left text-xs sm:text-sm space-y-2 text-slate-300">
+                <!-- Diisi dinamis -->
+            </div>
+
+            <div class="mt-5 grid grid-cols-2 gap-3">
+                <button onclick="closeFinishAndReset()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-4 rounded-xl border border-slate-600 text-sm transition">
+                    🔄 Ulangi Balapan
+                </button>
+                <button onclick="closeFinishAndOpenSetup()" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold py-2.5 px-4 rounded-xl text-sm transition">
+                    ⚙️ Coba Loop Lain
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ============================================================================
+         * STATE & KONFIGURASI PEMBELAJARAN LOOPING
+         * ============================================================================
+         */
+        const state = {
+            loopType: 'for',          // 'for' atau 'while'
+            targetLap: 3,             // Jumlah target putaran (1 - 5)
+            currentLap: 0,            // Variabel penghitung iterasi saat ini
+            raceStatus: 'IDLE',       // 'IDLE', 'RUNNING', 'PAUSED', 'FINISHED'
+            autoGas: true,            // Gas otomatis aktif secara default agar siswa mudah
+            steeringAssist: true,     // Bantuan kehalusan belok agar tidak mudah melintir
+            activeLine: 0             // Baris kode yang sedang disorot
+        };
+
+        // Referensi Elemen Canvas
+        const canvas = document.getElementById('raceCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvas-container');
+
+        /**
+         * ============================================================================
+         * FISIKA MOBIL NASCAR (DIRANCANG PELAN & BELOK HALUS / DIKIT AJA)
+         * ============================================================================
+         */
+        const car = {
+            x: 0,
+            y: 0,
+            angle: 0,                 // Radian (0 = menghadap kanan)
+            speed: 0,
+            // Kecepatan pelan & stabil agar mudah dikendalikan siswa
+            maxSpeed: 1.85,           // Pelan dan nyaman diamati
+            accel: 0.04,
+            friction: 0.96,
+            // Sudut belok halus / dikit aja (turn rate rendah)
+            turnSpeed: 0.022,
+            width: 34,
+            height: 18,
+            // Pelacakan progres putaran di sirkuit oval
+            lastHalf: 'bottom',       // 'bottom' atau 'top' untuk validasi melewati checkpoint tengah
+            passedCheckpoint: false
+        };
+
+        // Input Kontrol (Keyboard & Touch)
+        const keys = {
+            ArrowLeft: false,
+            ArrowRight: false,
+            ArrowUp: false
+        };
+
+        // Dimensi Sirkuit Oval Dinamis (Menyesuaikan Ukuran Layar)
+        let track = {
+            cx: 0,
+            cy: 0,
+            rxOuter: 0,
+            ryOuter: 0,
+            rxInner: 0,
+            ryInner: 0,
+            rxCenter: 0,
+            ryCenter: 0
+        };
+
+        /**
+         * ============================================================================
+         * INISIALISASI & RESPONSIVE CANVAS
+         * ============================================================================
+         */
+        function resizeCanvas() {
+            const rect = canvasContainer.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            // Hitung proporsi lintasan oval NASCAR yang lebar
+            track.cx = canvas.width / 2;
+            track.cy = canvas.height / 2 + 8;
+
+            const padX = Math.max(36, canvas.width * 0.08);
+            const padY = Math.max(46, canvas.height * 0.14);
+
+            track.rxOuter = (canvas.width / 2) - padX;
+            track.ryOuter = (canvas.height / 2) - padY;
+
+            // Lebar lintasan dibuat sangat lega (sekitar 38% dari radius)
+            const trackWidth = Math.min(track.rxOuter, track.ryOuter) * 0.44;
+            track.rxInner = Math.max(45, track.rxOuter - trackWidth);
+            track.ryInner = Math.max(30, track.ryOuter - trackWidth);
+
+            // Garis tengah lintasan (racing line)
+            track.rxCenter = (track.rxOuter + track.rxInner) / 2;
+            track.ryCenter = (track.ryOuter + track.ryInner) / 2;
+
+            // Jika balapan belum berjalan, posisikan mobil tepat di garis start bawah
+            if (state.raceStatus === 'IDLE') {
+                resetCarPosition();
+            }
+        }
+
+        function resetCarPosition() {
+            car.x = track.cx;
+            car.y = track.cy + track.ryCenter;
+            car.angle = 0; // Menghadap ke kanan (berlawanan arah jarum jam seperti NASCAR)
+            car.speed = 0;
+            car.passedCheckpoint = false;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        /**
+         * ============================================================================
+         * LOGIKA LIVE CODE VISUALIZER & PEMBELAJARAN LOOPING
+         * ============================================================================
+         */
+        function renderCodePanel() {
+            const codeDisplay = document.getElementById('code-display');
+            const badge = document.getElementById('badge-loop-type');
+            const t = state.targetLap;
+
+            if (state.loopType === 'for') {
+                badge.textContent = 'FOR LOOP';
+                badge.className = 'text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30';
+                codeDisplay.innerHTML = `
+                    <div id="line-1" class="code-line px-2 py-1 rounded text-slate-300"><span class="text-slate-500 mr-2">1</span><span class="text-purple-400">let</span> targetLap = <span class="text-amber-400">${t}</span>;</div>
+                    <div id="line-2" class="code-line px-2 py-1 rounded text-slate-300"><span class="text-slate-500 mr-2">2</span><span class="text-purple-400">for</span> (<span class="text-purple-400">let</span> lap = <span class="text-amber-400">1</span>; <span class="text-sky-300">lap &lt;= targetLap</span>; lap++) {</div>
+                    <div id="line-3" class="code-line px-2 py-1 rounded text-slate-300 pl-6"><span class="text-slate-500 mr-2">3</span><span class="text-emerald-400">jalankanMobilSatuPutaran</span>(lap);</div>
+                    <div id="line-4" class="code-line px-2 py-1 rounded text-slate-300"><span class="text-slate-500 mr-2">4</span>}</div>
+                    <div id="line-5" class="code-line px-2 py-1 rounded text-slate-400"><span class="text-slate-500 mr-2">5</span><span class="text-rose-400">garisFinishBerhenti</span>(); <span class="text-slate-500">// Loop selesai</span></div>
+                `;
+            } else {
+                badge.textContent = 'WHILE LOOP';
+                badge.className = 'text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                codeDisplay.innerHTML = `
+                    <div id="line-1" class="code-line px-2 py-1 rounded text-slate-300"><span class="text-slate-500 mr-2">1</span><span class="text-purple-400">let</span> lap = <span class="text-amber-400">1</span>, targetLap = <span class="text-amber-400">${t}</span>;</div>
+                    <div id="line-2" class="code-line px-2 py-1 rounded text-slate-300"><span class="text-purple-400">while</span> (<span class="text-sky-300">lap &lt;= targetLap</span>) {</div>
+                    <div id="line-3" class="code-line px-2 py-1 rounded text-slate-300 pl-6"><span class="text-emerald-400">jalankanMobilSatuPutaran</span>(lap);</div>
+                    <div id="line-4" class="code-line px-2 py-1 rounded text-slate-300 pl-6">lap++; <span class="text-slate-500">// Tambah counter +1</span></div>
+                    <div id="line-5" class="code-line px-2 py-1 rounded text-slate-300">}</div>
+                    <div id="line-6" class="code-line px-2 py-1 rounded text-slate-400"><span class="text-rose-400">garisFinishBerhenti</span>(); <span class="text-slate-500">// Kondisi FALSE</span></div>
+                `;
+            }
+        }
+
+        function highlightLine(lineNum, statusType = 'normal') {
+            document.querySelectorAll('.code-line').forEach(el => {
+                el.classList.remove('active', 'active-true', 'active-false');
+            });
+            const target = document.getElementById(`line-${lineNum}`);
+            if (target) {
+                target.classList.add('active');
+                if (statusType === 'true') target.classList.add('active-true');
+                if (statusType === 'false') target.classList.add('active-false');
+            }
+        }
+
+        function addLog(message, colorClass = 'text-slate-300') {
+            const logBox = document.getElementById('iteration-log');
+            if (logBox.children.length === 1 && logBox.children[0].classList.contains('italic')) {
+                logBox.innerHTML = '';
+            }
+            const entry = document.createElement('div');
+            entry.className = `${colorClass} border-b border-slate-900 pb-1`;
+            entry.innerHTML = message;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function updateHUD(evalText = '-', evalColor = 'text-slate-300') {
+            document.getElementById('hud-lap').textContent = `${state.currentLap} / ${state.targetLap}`;
+            document.getElementById('mem-lap').textContent = state.currentLap;
+            document.getElementById('mem-target').textContent = state.targetLap;
+
+            const memEval = document.getElementById('mem-eval');
+            memEval.textContent = evalText;
+            memEval.className = `code-font text-sm font-extrabold mt-1.5 ${evalColor}`;
+
+            const hudCond = document.getElementById('hud-condition');
+            if (state.raceStatus === 'IDLE') {
+                hudCond.textContent = 'SIAP';
+                hudCond.className = 'code-font font-bold text-sky-400 text-xs sm:text-sm';
+            } else if (state.raceStatus === 'RUNNING') {
+                hudCond.textContent = `${state.currentLap} <= ${state.targetLap} (TRUE)`;
+                hudCond.className = 'code-font font-bold text-emerald-400 text-xs sm:text-sm';
+            } else if (state.raceStatus === 'FINISHED') {
+                hudCond.textContent = `${state.currentLap} <= ${state.targetLap} (FALSE)`;
+                hudCond.className = 'code-font font-bold text-rose-400 text-xs sm:text-sm';
+            }
+        }
+
+        function setNarration(htmlText) {
+            document.getElementById('live-narration').innerHTML = htmlText;
+        }
+
+        /**
+         * ============================================================================
+         * SIKLUS EKSEKUSI ITERASI LOOP SAAT BALAPAN
+         * ============================================================================
+         */
+        function startLoopExecution() {
+            state.currentLap = 1;
+            state.raceStatus = 'RUNNING';
+            updateStartButtonUI();
+
+            // Sorot inisialisasi & pengecekan kondisi awal
+            highlightLine(2, 'true');
+            updateHUD('TRUE', 'text-emerald-400');
+
+            addLog(`<span class="text-sky-400">[Mulai]</span> Inisialisasi <b>lap = 1</b>.`, 'text-slate-200');
+            addLog(`<span class="text-emerald-400">[Cek Kondisi]</span> 1 &lt;= ${state.targetLap} bernilai <b>TRUE</b> → Masuk badan loop!`, 'text-emerald-300');
+
+            setTimeout(() => {
+                if (state.raceStatus === 'RUNNING') {
+                    highlightLine(3, 'true');
+                    setNarration(`<span class="text-emerald-400 font-bold">🔄 Iterasi ke-1:</span> Kondisi <code>1 &lt;= ${state.targetLap}</code> bernilai <b>TRUE</b>. Mobil menempuh putaran ke-1!`);
+                }
+            }, 600);
+        }
+
+        function onLapCompleted() {
+            // Increment variabel lap (lap++)
+            const finishedLap = state.currentLap;
+            state.currentLap++;
+
+            // Sorot bagian increment (baris 2 pada for loop, atau baris 4 pada while loop)
+            if (state.loopType === 'for') {
+                highlightLine(2, 'true');
+            } else {
+                highlightLine(4, 'true');
+            }
+
+            addLog(`<span class="text-amber-400">[Increment]</span> Putaran ke-${finishedLap} selesai. <code>lap++</code> → sekarang <b>lap = ${state.currentLap}</b>.`);
+
+            // Evaluasi kondisi apakah lanjut ke iterasi berikutnya atau berhenti
+            if (state.currentLap <= state.targetLap) {
+                // KONDISI TRUE -> LANJUT PUTARAN BERIKUTNYA
+                updateHUD('TRUE', 'text-emerald-400');
+                addLog(`<span class="text-emerald-400">[Cek Kondisi]</span> ${state.currentLap} &lt;= ${state.targetLap} adalah <b>TRUE</b> → Lanjut Lap ke-${state.currentLap}!`, 'text-emerald-300');
+                setNarration(`<span class="text-emerald-400 font-bold">✅ Lap ${finishedLap} Selesai!</span> <code>lap</code> menjadi <b>${state.currentLap}</b>. Karena <code>${state.currentLap} &lt;= ${state.targetLap}</code> (<b>TRUE</b>), loop berlanjut!`);
+
+                setTimeout(() => {
+                    if (state.raceStatus === 'RUNNING') {
+                        highlightLine(3, 'true');
+                    }
+                }, 700);
+            } else {
+                // KONDISI FALSE -> PERULANGAN BERHENTI (FINISH)
+                state.raceStatus = 'FINISHED';
+                car.speed = 0;
+                updateStartButtonUI();
+
+                const stopLine = state.loopType === 'for' ? 5 : 6;
+                highlightLine(stopLine, 'false');
+                updateHUD('FALSE', 'text-rose-400');
+
+                addLog(`<span class="text-rose-400">[Cek Kondisi]</span> ${state.currentLap} &lt;= ${state.targetLap} adalah <b>FALSE</b> → Keluar dari Loop (STOP)!`, 'text-rose-300');
+                setNarration(`<span class="text-rose-400 font-bold">🏁 STOP (FALSE)!</span> Nilai <code>lap = ${state.currentLap}</code> sudah melebihi <code>targetLap = ${state.targetLap}</code>. Loop berhenti!`);
+
+                setTimeout(showFinishSummaryModal, 900);
+            }
+        }
+
+        /**
+         * ============================================================================
+         * UPDATE FISIKA & LOGIKA KENDALI MOBIL (PELAN & BELOK HALUS)
+         * ============================================================================
+         */
+        function updatePhysics() {
+            if (state.raceStatus !== 'RUNNING') return;
+
+            // 1. Akselerasi (Gas Otomatis atau Panah Atas)
+            const isGasPressed = state.autoGas || keys.ArrowUp;
+            if (isGasPressed) {
+                car.speed += car.accel;
+                if (car.speed > car.maxSpeed) car.speed = car.maxSpeed;
+            } else {
+                car.speed *= car.friction;
+            }
+
+            // 2. Kontrol Belok Kiri / Kanan (Sudut Belok Halus / Dikit Aja)
+            // Karena NASCAR berbelok berlawanan arah jarum jam (ke kiri di lintasan),
+            // panah kiri mengurangi sudut (belok kiri mobil), panah kanan menambah sudut (belok kanan mobil).
+            if (keys.ArrowLeft) {
+                car.angle -= car.turnSpeed;
+            }
+            if (keys.ArrowRight) {
+                car.angle += car.turnSpeed;
+            }
+
+            // 3. Bantuan Setir Pintar (Steering Assist) opsional agar sangat ramah pemula
+            // Memberikan sedikit tarikan lembut mengikuti kelengkungan oval jika pemain tidak menekan tombol
+            if (state.steeringAssist && !keys.ArrowLeft && !keys.ArrowRight) {
+                const dx = car.x - track.cx;
+                const dy = car.y - track.cy;
+                // Sudut tangen ideal lintasan oval berlawanan arah jarum jam
+                const idealAngle = Math.atan2(
+                    (dx / (track.rxCenter * track.rxCenter)),
+                    -(dy / (track.ryCenter * track.ryCenter))
+                );
+                // Selisih sudut terpendek
+                let diff = idealAngle - car.angle;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                // Koreksi sangat lembut (hanya 2.5%) agar tetap terasa dikendalikan pemain
+                car.angle += diff * 0.025;
+            }
+
+            // 4. Gerakkan Posisi Mobil
+            car.x += Math.cos(car.angle) * car.speed;
+            car.y += Math.sin(car.angle) * car.speed;
+
+            // 5. Pembatas Lintasan Lembut (Soft Track Boundary) agar mobil tidak pernah nyangkut/keluar layar
+            const normX = (car.x - track.cx) / track.rxCenter;
+            const normY = (car.y - track.cy) / track.ryCenter;
+            const distRatio = Math.sqrt(normX * normX + normY * normY);
+
+            const maxRatio = (track.rxOuter - 16) / track.rxCenter;
+            const minRatio = (track.rxInner + 16) / track.rxCenter;
+
+            if (distRatio > maxRatio) {
+                const scale = maxRatio / distRatio;
+                car.x = track.cx + (car.x - track.cx) * scale;
+                car.y = track.cy + (car.y - track.cy) * scale;
+            } else if (distRatio < minRatio) {
+                const scale = minRatio / distRatio;
+                car.x = track.cx + (car.x - track.cx) * scale;
+                car.y = track.cy + (car.y - track.cy) * scale;
+            }
+
+            // 6. Deteksi Checkpoint Tengah Atas & Garis Start/Finish Bawah
+            // Checkpoint atas: mobil berada di bagian atas sirkuit (y < cy)
+            if (car.y < track.cy - track.ryInner * 0.5) {
+                car.passedCheckpoint = true;
+            }
+
+            // Garis Start/Finish berada di bagian bawah tengah (x sekitar track.cx, y > track.cy)
+            if (car.passedCheckpoint && car.y > track.cy && Math.abs(car.x - track.cx) < 28) {
+                car.passedCheckpoint = false;
+                onLapCompleted();
+            }
+        }
+
+        /**
+         * ============================================================================
+         * RENDER VISUAL SIRKUIT NASCAR & MOBIL BALAP
+         * ============================================================================
+         */
+        function drawCircuit() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // 1. Latar Rumput Hijau Sirkuit
+            ctx.fillStyle = '#14532d';
+            ctx.fillRect(0, 0, w, h);
+
+            // Pola garis rumput halus
+            ctx.fillStyle = 'rgba(22, 101, 52, 0.45)';
+            for (let i = 0; i < w; i += 40) {
+                ctx.fillRect(i, 0, 20, h);
+            }
+
+            // 2. Tribun Penonton di Sisi Atas & Bawah
+            drawGrandstands();
+
+            // 3. Dinding Pembatas Luar (Merah-Putih)
+            ctx.beginPath();
+            ctx.ellipse(track.cx, track.cy, track.rxOuter + 8, track.ryOuter + 8, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#ef4444';
+            ctx.setLineDash([16, 16]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 4. Aspal Lintasan Balap NASCAR
+            ctx.beginPath();
+            ctx.ellipse(track.cx, track.cy, track.rxOuter, track.ryOuter, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#334155';
+            ctx.fill();
+
+            // 5. Garis Bantu Lintasan (Racing Line Putus-putus)
+            ctx.beginPath();
+            ctx.ellipse(track.cx, track.cy, track.rxCenter, track.ryCenter, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([12, 12]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 6. Area Rumput Tengah (Infield Oval)
+            ctx.beginPath();
+            ctx.ellipse(track.cx, track.cy, track.rxInner, track.ryInner, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#15803d';
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#f8fafc';
+            ctx.stroke();
+
+            // Dekorasi Infield (Tulisan Edukatif di Tengah Sirkuit)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.font = 'bold 13px "Plus Jakarta Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`TARGET: ${state.targetLap} LAP`, track.cx, track.cy - 6);
+            ctx.fillStyle = '#fde047';
+            ctx.font = 'bold 11px "Fira Code", monospace';
+            ctx.fillText(state.loopType === 'for' ? 'for (lap=1; lap<=target; lap++)' : 'while (lap <= target)', track.cx, track.cy + 12);
+
+            // 7. Checkpoint Tengah Atas (Penanda Setengah Putaran)
+            ctx.beginPath();
+            ctx.moveTo(track.cx, track.cy - track.ryOuter);
+            ctx.lineTo(track.cx, track.cy - track.ryInner);
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 8. Garis Start / Finish Kotak-Kotak (Bawah Tengah)
+            drawStartFinishLine();
+        }
+
+        function drawGrandstands() {
+            const standWidth = Math.min(240, canvas.width * 0.45);
+            const standX = track.cx - standWidth / 2;
+
+            // Tribun Atas
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(standX, 6, standWidth, 18);
+            // Penonton warna-warni mini
+            const colors = ['#f87171', '#38bdf8', '#facc15', '#4ade80', '#ffffff'];
+            for (let x = standX + 8; x < standX + standWidth - 8; x += 10) {
+                ctx.fillStyle = colors[(x / 10) % colors.length];
+                ctx.beginPath();
+                ctx.arc(x, 15, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawStartFinishLine() {
+            const topY = track.cy + track.ryInner;
+            const bottomY = track.cy + track.ryOuter;
+            const lineHeight = bottomY - topY;
+            const cols = 3;
+            const rows = Math.floor(lineHeight / 8);
+            const cellW = 7;
+            const cellH = lineHeight / rows;
+            const startX = track.cx - (cols * cellW) / 2;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    ctx.fillStyle = (r + c) % 2 === 0 ? '#ffffff' : '#0f172a';
+                    ctx.fillRect(startX + c * cellW, topY + r * cellH, cellW, cellH);
+                }
+            }
+
+            // Label START / FINISH
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 10px "Plus Jakarta Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('START / FINISH', track.cx, bottomY + 18);
+        }
+
+        function drawCar() {
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(car.angle);
+
+            // Bayangan Mobil
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.beginPath();
+            ctx.roundRect(-car.width / 2 + 2, -car.height / 2 + 3, car.width, car.height, 5);
+            ctx.fill();
+
+            // Roda Mobil (4 Ban Hitam)
+            ctx.fillStyle = '#090d16';
+            ctx.fillRect(-12, -11, 8, 3);
+            ctx.fillRect(6, -11, 8, 3);
+            ctx.fillRect(-12, 8, 8, 3);
+            ctx.fillRect(6, 8, 8, 3);
+
+            // Bodi Utama Mobil NASCAR (Kuning-Oranye Cerah)
+            const bodyGrad = ctx.createLinearGradient(-car.width / 2, 0, car.width / 2, 0);
+            bodyGrad.addColorStop(0, '#f97316');
+            bodyGrad.addColorStop(0.5, '#facc15');
+            bodyGrad.addColorStop(1, '#ef4444');
+
+            ctx.fillStyle = bodyGrad;
+            ctx.beginPath();
+            ctx.roundRect(-car.width / 2, -car.height / 2, car.width, car.height, 6);
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            // Kaca Depan & Belakang Kokpit
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(-5, -car.height / 2 + 3, 12, car.height - 6, 3);
+            ctx.fill();
+
+            // Nomor Balap di Atap Mobil
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(state.currentLap || '0', 0, 0);
+
+            // Lampu Depan
+            ctx.fillStyle = '#fef08a';
+            ctx.fillRect(car.width / 2 - 2, -6, 2, 3);
+            ctx.fillRect(car.width / 2 - 2, 3, 2, 3);
+
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            updatePhysics();
+            drawCircuit();
+            drawCar();
+            requestAnimationFrame(gameLoop);
+        }
+
+        /**
+         * ============================================================================
+         * KONTROL INTERAKSI PENGGUNA (KEYBOARD, SENTUH & MODAL)
+         * ============================================================================
+         */
+        // Event Listener Keyboard
+        window.addEventListener('keydown', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = true;
+                e.preventDefault();
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = false;
+            }
+        });
+
+        // Binding Tombol Layar Sentuh & Mouse
+        function bindTouchButton(btnId, keyName) {
+            const btn = document.getElementById(btnId);
+            const press = (e) => {
+                e.preventDefault();
+                keys[keyName] = true;
+                btn.classList.add('pressed');
+            };
+            const release = (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+                btn.classList.remove('pressed');
+            };
+            btn.addEventListener('mousedown', press);
+            btn.addEventListener('mouseup', release);
+            btn.addEventListener('mouseleave', release);
+            btn.addEventListener('touchstart', press, { passive: false });
+            btn.addEventListener('touchend', release, { passive: false });
+        }
+
+        bindTouchButton('touch-left', 'ArrowLeft');
+        bindTouchButton('touch-right', 'ArrowRight');
+        bindTouchButton('touch-gas', 'ArrowUp');
+
+        function toggleAutoGas() {
+            state.autoGas = !state.autoGas;
+            const btn = document.getElementById('toggle-auto-gas');
+            const icon = document.getElementById('auto-gas-icon');
+            const text = document.getElementById('auto-gas-text');
+            const touchGas = document.getElementById('touch-gas');
+
+            if (state.autoGas) {
+                btn.className = 'bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-lg border border-emerald-400/30 transition flex items-center gap-1.5';
+                icon.textContent = '🟢';
+                text.textContent = 'Gas Otomatis: ON';
+                touchGas.classList.add('hidden');
+            } else {
+                btn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl shadow-lg border border-slate-600 transition flex items-center gap-1.5';
+                icon.textContent = '⚪';
+                text.textContent = 'Gas Otomatis: OFF';
+                touchGas.classList.remove('hidden');
+            }
+        }
+
+        function toggleRaceState() {
+            if (state.raceStatus === 'IDLE') {
+                startLoopExecution();
+            } else if (state.raceStatus === 'RUNNING') {
+                state.raceStatus = 'PAUSED';
+                updateStartButtonUI();
+                setNarration('<span class="text-amber-400 font-bold">⏸️ Dijeda:</span> Eksekusi loop ditahan sementara.');
+            } else if (state.raceStatus === 'PAUSED') {
+                state.raceStatus = 'RUNNING';
+                updateStartButtonUI();
+                setNarration(`<span class="text-emerald-400 font-bold">▶️ Dilanjutkan:</span> Menjalankan iterasi ke-${state.currentLap}...`);
+            } else if (state.raceStatus === 'FINISHED') {
+                resetRace();
+                startLoopExecution();
+            }
+        }
+
+        function updateStartButtonUI() {
+            const icon = document.getElementById('btn-start-icon');
+            const text = document.getElementById('btn-start-text');
+            if (state.raceStatus === 'RUNNING') {
+                icon.textContent = '⏸️';
+                text.textContent = 'Jeda';
+            } else if (state.raceStatus === 'PAUSED') {
+                icon.textContent = '▶️';
+                text.textContent = 'Lanjutkan';
+            } else if (state.raceStatus === 'FINISHED') {
+                icon.textContent = '🔄';
+                text.textContent = 'Balap Lagi';
+            } else {
+                icon.textContent = '▶️';
+                text.textContent = 'Mulai Balapan';
+            }
+        }
+
+        function resetRace() {
+            state.raceStatus = 'IDLE';
+            state.currentLap = 0;
+            resetCarPosition();
+            updateStartButtonUI();
+            renderCodePanel();
+            updateHUD('-', 'text-slate-300');
+            document.getElementById('iteration-log').innerHTML = '<div class="text-slate-500 italic">// Siap menjalankan perulangan...</div>';
+            setNarration('<span class="text-amber-400 font-bold">💡 Siap:</span> Tekan <b>Mulai Balapan</b> untuk melihat loop berjalan!');
+        }
+
+        /**
+         * ============================================================================
+         * LOGIKA MODAL PENGATURAN & MODAL RINGKASAN PEMBELAJARAN
+         * ============================================================================
+         */
+        let tempLoopType = 'for';
+
+        function selectLoopType(type) {
+            tempLoopType = type;
+            const optFor = document.getElementById('opt-for');
+            const optWhile = document.getElementById('opt-while');
+
+            if (type === 'for') {
+                optFor.className = 'p-3 rounded-xl border-2 border-sky-500 bg-sky-500/15 text-left transition';
+                optWhile.className = 'p-3 rounded-xl border-2 border-slate-700 bg-slate-800/60 text-left transition hover:border-slate-500';
+            } else {
+                optWhile.className = 'p-3 rounded-xl border-2 border-amber-500 bg-amber-500/15 text-left transition';
+                optFor.className = 'p-3 rounded-xl border-2 border-slate-700 bg-slate-800/60 text-left transition hover:border-slate-500';
+            }
+            updateSetupPreview();
+        }
+
+        function updateSetupPreview() {
+            const laps = document.getElementById('input-target-lap').value;
+            document.getElementById('setup-lap-display').textContent = `${laps} Lap`;
+            const preview = document.getElementById('setup-code-preview');
+
+            if (tempLoopType === 'for') {
+                preview.textContent = `let targetLap = ${laps};\nfor (let lap = 1; lap <= targetLap; lap++) {\n    jalankanMobilSatuPutaran(lap);\n}`;
+            } else {
+                preview.textContent = `let lap = 1, targetLap = ${laps};\nwhile (lap <= targetLap) {\n    jalankanMobilSatuPutaran(lap);\n    lap++;\n}`;
+            }
+        }
+
+        function openSetupModal() {
+            tempLoopType = state.loopType;
+            document.getElementById('input-target-lap').value = state.targetLap;
+            document.getElementById('input-assist').checked = state.steeringAssist;
+            selectLoopType(tempLoopType);
+            document.getElementById('setup-modal').classList.remove('hidden');
+            document.getElementById('setup-modal').classList.add('flex');
+        }
+
+        function applySetupAndClose() {
+            state.loopType = tempLoopType;
+            state.targetLap = parseInt(document.getElementById('input-target-lap').value, 10);
+            state.steeringAssist = document.getElementById('input-assist').checked;
+
+            document.getElementById('setup-modal').classList.add('hidden');
+            document.getElementById('setup-modal').classList.remove('flex');
+            resetRace();
+        }
+
+        function showFinishSummaryModal() {
+            const box = document.getElementById('finish-summary-box');
+            const loopName = state.loopType === 'for' ? 'FOR Loop' : 'WHILE Loop';
+
+            box.innerHTML = `
+                <div class="flex justify-between border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">Jenis Perulangan:</span>
+                    <span class="font-bold text-sky-400">${loopName}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">Total Putaran Selesai:</span>
+                    <span class="font-bold text-emerald-400">${state.targetLap} Lap (Iterasi 1 s/d ${state.targetLap})</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">Nilai Akhir Variabel <code>lap</code>:</span>
+                    <span class="code-font font-bold text-amber-400">${state.currentLap}</span>
+                </div>
+                <p class="text-slate-300 pt-1 leading-relaxed">
+                    💡 <b>Kesimpulan:</b> Perulangan berjalan sebanyak <b>${state.targetLap} kali</b>. Setelah putaran ke-${state.targetLap}, nilai <code>lap</code> bertambah menjadi <b>${state.currentLap}</b>. Karena syarat <code>${state.currentLap} &lt;= ${state.targetLap}</code> bernilai <b>FALSE</b>, program otomatis keluar dari loop dan menghentikan mobil.
+                </p>
+            `;
+
+            const modal = document.getElementById('finish-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeFinishAndReset() {
+            const modal = document.getElementById('finish-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            resetRace();
+        }
+
+        function closeFinishAndOpenSetup() {
+            const modal = document.getElementById('finish-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            openSetupModal();
+        }
+
+        // Jalankan Inisialisasi Saat Halaman Dimuat
+        window.onload = function() {
+            resizeCanvas();
+            renderCodePanel();
+            updateHUD('-', 'text-slate-300');
+            updateSetupPreview();
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
